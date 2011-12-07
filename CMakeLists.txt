@@ -495,7 +495,7 @@ if (NOT V8_STATIC)
     xmake_create_dynamic_library(V8 v8 3.7.12 3.7.0 ${SRCS_V8_DYN})
     xmake_add_to_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
 
-    xmake_export_include_paths(V8 "${V8_SOURCE_DIR}/src")
+    xmake_export_include_paths(V8 "${V8_SOURCE_DIR}/include")
     xmake_export_compile_definitions(V8 "USING_V8_SHARED;V8_SHARED")
 endif()
 

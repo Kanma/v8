@@ -395,6 +395,10 @@ set(SRCS_V8_BASE_ALL ${SRCS_V8_BASE} ${SRCS_V8_BASE_IA32} ${SRCS_V8_BASE_X64} ${
 xmake_create_static_library(V8_BASE v8_base ${SRCS_V8_BASE_ALL})
 xmake_export_include_paths(V8_BASE "${V8_SOURCE_DIR}/src")
 
+if (UNIX)
+    xmake_export_link_flags(V8_BASE "-lpthread")
+endif()
+
 
 ##########################################################################################
 # js2c
@@ -457,7 +461,7 @@ xmake_export_include_paths(V8_NOSNAPSHOT "${V8_SOURCE_DIR}/src")
 # mksnapshot
 
 xmake_create_executable(MKSNAPSHOT mksnapshot "${V8_SOURCE_DIR}/src/mksnapshot.cc")
-xmake_project_link(MKSNAPSHOT V8_NOSNAPSHOT V8_BASE)
+xmake_project_link(MKSNAPSHOT V8_BASE V8_NOSNAPSHOT)
 
 set_target_properties(mksnapshot PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/tools/v8/")
 
@@ -493,7 +497,7 @@ if (NOT V8_STATIC)
 
     # Declaration of the library
     xmake_create_dynamic_library(V8 v8 3.7.12 3.7.0 ${SRCS_V8_DYN})
-    xmake_add_to_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
+    xmake_add_to_list_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
 
     xmake_export_include_paths(V8 "${V8_SOURCE_DIR}/include")
     xmake_export_compile_definitions(V8 "USING_V8_SHARED;V8_SHARED")
@@ -564,7 +568,7 @@ xmake_create_executable(D8 d8 "${V8_SOURCE_DIR}/src/d8.cc"
                               "${SRCS_D8_PLATFORM}"
 )
 
-xmake_project_link(D8 V8_SNAPSHOT V8_BASE)
+xmake_project_link(D8 V8_BASE V8_SNAPSHOT)
 
 get_target_property(LINK_FLAGS d8 LINK_FLAGS)
 

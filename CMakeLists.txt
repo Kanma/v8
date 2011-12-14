@@ -498,6 +498,10 @@ if (NOT V8_STATIC)
     # Declaration of the library
     xmake_create_dynamic_library(V8 v8 3.7.12 3.7.0 ${SRCS_V8_DYN})
     xmake_add_to_list_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
+    
+    if (UNIX)
+        xmake_add_to_property(V8 LINK_FLAGS "-lpthread")
+    endif()
 
     xmake_export_include_paths(V8 "${V8_SOURCE_DIR}/include")
     xmake_export_compile_definitions(V8 "USING_V8_SHARED;V8_SHARED")

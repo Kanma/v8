@@ -1,4 +1,4 @@
-This is a custom distribution of the V8 JavaScript Engine, version 3.7.12
+This is a custom distribution of the V8 JavaScript Engine, version 3.8.9
 
 This distribution includes a custom CMake-based build system, using XMake to
 simplify the compilation/linking of the library alongside an external program.

@@ -25,47 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
-#define V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
+// Flags: --allow-natives-syntax
 
-#include "include/v8.h"
-
-#include "unicode/uversion.h"
-
-namespace U_ICU_NAMESPACE {
-class DecimalFormat;
+// Test Math.round with the input reused in the same expression.
+function test(x) {
+  var v = Math.round(x) - x;
+  assertEquals(0.5, v);
 }
 
-namespace v8 {
-namespace internal {
-
-class NumberFormat {
- public:
-  // 3-letter ISO 4217 currency code plus \0.
-  static const int kCurrencyCodeLength;
-
-  static v8::Handle<v8::Value> JSNumberFormat(const v8::Arguments& args);
-
-  // Helper methods for various bindings.
-
-  // Unpacks date format object from corresponding JavaScript object.
-  static icu::DecimalFormat* UnpackNumberFormat(
-      v8::Handle<v8::Object> obj);
-
-  // Release memory we allocated for the NumberFormat once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteNumberFormat(v8::Persistent<v8::Value> object,
-                                 void* param);
-
-  // Formats number and returns corresponding string.
-  static v8::Handle<v8::Value> Format(const v8::Arguments& args);
-
- private:
-  NumberFormat();
-
-  static v8::Persistent<v8::FunctionTemplate> number_format_template_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_EXPERIMENTAL_NUMBER_FORMAT_H_
+for (var i = 0; i < 5; ++i) test(0.5);
+%OptimizeFunctionOnNextCall(test);
+test(0.5);

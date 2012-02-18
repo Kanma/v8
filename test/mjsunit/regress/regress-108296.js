@@ -25,44 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H
-#define V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H_
+// Flags: --allow-natives-syntax
 
-#include "include/v8.h"
+// This test checks that young immediates embedded into code objects
+// are referenced through a cell.
 
-#include "unicode/uversion.h"
-
-namespace U_ICU_NAMESPACE {
-class Collator;
-class UnicodeString;
+function f (k, a, b) {
+  // Create control flow for a.foo.  Control flow resolution will
+  // be generated as a part of a gap move. Gap move operate on immediates as
+  // a.foo is a CONSTANT_FUNCTION.
+  var x = k ? a.foo : a.foo;
+  return x.prototype;
 }
 
-namespace v8 {
-namespace internal {
+var a = { };
 
-class Collator {
- public:
-  static v8::Handle<v8::Value> JSCollator(const v8::Arguments& args);
+// Make sure that foo is a CONSTANT_FUNCTION but not be pretenured.
+a.foo = (function () { return function () {}; })();
 
-  // Helper methods for various bindings.
-
-  // Unpacks collator object from corresponding JavaScript object.
-  static icu::Collator* UnpackCollator(v8::Handle<v8::Object> obj);
-
-  // Release memory we allocated for the Collator once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteCollator(v8::Persistent<v8::Value> object, void* param);
-
-  // Compare two strings and returns -1, 0 and 1 depending on
-  // whether string1 is smaller than, equal to or larger than string2.
-  static v8::Handle<v8::Value> CollatorCompare(const v8::Arguments& args);
-
- private:
-  Collator() {}
-
-  static v8::Persistent<v8::FunctionTemplate> collator_template_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_EXPERIMENTAL_COLLATOR
+// Ensure that both branches of ternary operator have monomorphic type feedback.
+f(true, a, a);
+f(true, a, a);
+f(false, a, a);
+f(false, a, a);
+%OptimizeFunctionOnNextCall(f);
+f(true, a, a);

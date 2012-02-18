@@ -496,7 +496,7 @@ if (NOT V8_STATIC)
     )
 
     # Declaration of the library
-    xmake_create_dynamic_library(V8 v8 3.7.12 3.7.0 ${SRCS_V8_DYN})
+    xmake_create_dynamic_library(V8 v8 3.8.9 3.8.0 ${SRCS_V8_DYN})
     xmake_add_to_list_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
     
     if (UNIX)

@@ -225,8 +225,8 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (mark_bit.data_only()) {
       if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
-        MemoryChunk::IncrementLiveBytes(heap_object->address(),
-                                        heap_object->Size());
+        MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(),
+                                              heap_object->Size());
       }
     } else if (Marking::IsWhite(mark_bit)) {
       incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
@@ -263,8 +263,8 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (mark_bit.data_only()) {
       if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
-          MemoryChunk::IncrementLiveBytes(heap_object->address(),
-                                          heap_object->Size());
+          MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(),
+                                                heap_object->Size());
       }
     } else {
       if (Marking::IsWhite(mark_bit)) {
@@ -418,7 +418,7 @@ void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
 
 static void PatchIncrementalMarkingRecordWriteStubs(
     Heap* heap, RecordWriteStub::Mode mode) {
-  NumberDictionary* stubs = heap->code_stubs();
+  UnseededNumberDictionary* stubs = heap->code_stubs();
 
   int capacity = stubs->Capacity();
   for (int i = 0; i < capacity; i++) {
@@ -491,8 +491,8 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
     HeapObject* heap_obj = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::cast(obj));
     if (Marking::IsBlack(mark_bit)) {
-      MemoryChunk::IncrementLiveBytes(heap_obj->address(),
-                                      -heap_obj->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(heap_obj->address(),
+                                            -heap_obj->Size());
     }
     Marking::AnyToGrey(mark_bit);
   }
@@ -658,7 +658,7 @@ void IncrementalMarking::Hurry() {
       MarkBit mark_bit = Marking::MarkBitFrom(obj);
       ASSERT(!Marking::IsBlack(mark_bit));
       Marking::MarkBlack(mark_bit);
-      MemoryChunk::IncrementLiveBytes(obj->address(), obj->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
     }
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking) {
@@ -671,17 +671,22 @@ void IncrementalMarking::Hurry() {
   if (FLAG_cleanup_code_caches_at_gc) {
     PolymorphicCodeCache* poly_cache = heap_->polymorphic_code_cache();
     Marking::GreyToBlack(Marking::MarkBitFrom(poly_cache));
-    MemoryChunk::IncrementLiveBytes(poly_cache->address(),
-                                    PolymorphicCodeCache::kSize);
+    MemoryChunk::IncrementLiveBytesFromGC(poly_cache->address(),
+                                          PolymorphicCodeCache::kSize);
   }
 
   Object* context = heap_->global_contexts_list();
   while (!context->IsUndefined()) {
-    NormalizedMapCache* cache = Context::cast(context)->normalized_map_cache();
-    MarkBit mark_bit = Marking::MarkBitFrom(cache);
-    if (Marking::IsGrey(mark_bit)) {
-      Marking::GreyToBlack(mark_bit);
-      MemoryChunk::IncrementLiveBytes(cache->address(), cache->Size());
+    // GC can happen when the context is not fully initialized,
+    // so the cache can be undefined.
+    HeapObject* cache = HeapObject::cast(
+        Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
+    if (!cache->IsUndefined()) {
+      MarkBit mark_bit = Marking::MarkBitFrom(cache);
+      if (Marking::IsGrey(mark_bit)) {
+        Marking::GreyToBlack(mark_bit);
+        MemoryChunk::IncrementLiveBytesFromGC(cache->address(), cache->Size());
+      }
     }
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
@@ -814,7 +819,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       SLOW_ASSERT(Marking::IsGrey(obj_mark_bit) ||
                   (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
       Marking::MarkBlack(obj_mark_bit);
-      MemoryChunk::IncrementLiveBytes(obj->address(), size);
+      MemoryChunk::IncrementLiveBytesFromGC(obj->address(), size);
     }
     if (marking_deque_.IsEmpty()) MarkingComplete();
   }

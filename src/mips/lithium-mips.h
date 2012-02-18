@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -134,12 +134,14 @@ class LCodeGen;
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberUntagD)                               \
-  V(ObjectLiteral)                              \
+  V(ObjectLiteralFast)                          \
+  V(ObjectLiteralGeneric)                       \
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
   V(Power)                                      \
   V(PushArgument)                               \
+  V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
   V(ShiftI)                                     \
@@ -1025,6 +1027,17 @@ class LPower: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LRandom: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LRandom(LOperand* global_object) {
+    inputs_[0] = global_object;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Random, "random")
+  DECLARE_HYDROGEN_ACCESSOR(Random)
+};
+
+
 class LArithmeticD: public LTemplateInstruction<1, 2, 0> {
  public:
   LArithmeticD(Token::Value op, LOperand* left, LOperand* right)
@@ -1241,6 +1254,8 @@ class LStoreGlobalCell: public LTemplateInstruction<0, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
+
+  LOperand* value() { return inputs_[0]; }
 };
 
 
@@ -1792,6 +1807,8 @@ class LCheckFunction: public LTemplateInstruction<0, 1, 0> {
     inputs_[0] = value;
   }
 
+  LOperand* value() { return InputAt(0); }
+
   DECLARE_CONCRETE_INSTRUCTION(CheckFunction, "check-function")
   DECLARE_HYDROGEN_ACCESSOR(CheckFunction)
 };
@@ -1899,10 +1916,17 @@ class LArrayLiteral: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LObjectLiteral: public LTemplateInstruction<1, 0, 0> {
+class LObjectLiteralFast: public LTemplateInstruction<1, 0, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object-literal")
-  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteral)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast, "object-literal-fast")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralFast)
+};
+
+
+class LObjectLiteralGeneric: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric, "object-literal-generic")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralGeneric)
 };
 
 

@@ -1186,8 +1186,8 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
     if (directive_prologue) {
       // A shot at a directive.
-      ExpressionStatement *e_stat;
-      Literal *literal;
+      ExpressionStatement* e_stat;
+      Literal* literal;
       // Still processing directive prologue?
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
@@ -1562,7 +1562,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
-  // other functions are setup when entering the surrounding scope.
+  // other functions are set up when entering the surrounding scope.
   SharedFunctionInfoLiteral* lit =
       new(zone()) SharedFunctionInfoLiteral(isolate(), shared);
   VariableProxy* var = Declare(name, VAR, NULL, true, CHECK_OK);
@@ -2158,6 +2158,20 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
 
+  Token::Value tok = peek();
+  Statement* result;
+  if (scanner().HasAnyLineTerminatorBeforeNext() ||
+      tok == Token::SEMICOLON ||
+      tok == Token::RBRACE ||
+      tok == Token::EOS) {
+    ExpectSemicolon(CHECK_OK);
+    result = new(zone()) ReturnStatement(GetLiteralUndefined());
+  } else {
+    Expression* expr = ParseExpression(true, CHECK_OK);
+    ExpectSemicolon(CHECK_OK);
+    result = new(zone()) ReturnStatement(expr);
+  }
+
   // An ECMAScript program is considered syntactically incorrect if it
   // contains a return statement that is not within the body of a
   // function. See ECMA-262, section 12.9, page 67.
@@ -2170,19 +2184,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
     return new(zone()) ExpressionStatement(throw_error);
   }
-
-  Token::Value tok = peek();
-  if (scanner().HasAnyLineTerminatorBeforeNext() ||
-      tok == Token::SEMICOLON ||
-      tok == Token::RBRACE ||
-      tok == Token::EOS) {
-    ExpectSemicolon(CHECK_OK);
-    return new(zone()) ReturnStatement(GetLiteralUndefined());
-  }
-
-  Expression* expr = ParseExpression(true, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-  return new(zone()) ReturnStatement(expr);
+  return result;
 }
 
 
@@ -2693,6 +2695,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // Assignment to eval or arguments is disallowed in strict mode.
     CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
   }
+  MarkAsLValue(expression);
 
   Token::Value op = Next();  // Get assignment operator.
   int pos = scanner().location().beg_pos;
@@ -2926,6 +2929,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
+    MarkAsLValue(expression);
 
     int position = scanner().location().beg_pos;
     return new(zone()) CountOperation(isolate(),
@@ -2961,6 +2965,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
+    MarkAsLValue(expression);
 
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
@@ -2998,7 +3003,19 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::LPAREN: {
-        int pos = scanner().location().beg_pos;
+        int pos;
+        if (scanner().current_token() == Token::IDENTIFIER) {
+          // For call of an identifier we want to report position of
+          // the identifier as position of the call in the stack trace.
+          pos = scanner().location().beg_pos;
+        } else {
+          // For other kinds of calls we record position of the parenthesis as
+          // position of the call.  Note that this is extremely important for
+          // expressions of the form function(){...}() for which call position
+          // should not point to the closing brace otherwise it will intersect
+          // with positions recorded for function literal and confuse debugger.
+          pos = scanner().peek_location().beg_pos;
+        }
         ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
 
         // Keep track of eval() calls since they disable all local variable
@@ -3375,6 +3392,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       isolate()->factory()->NewFixedArray(values->length(), TENURED);
   Handle<FixedDoubleArray> double_literals;
   ElementsKind elements_kind = FAST_SMI_ONLY_ELEMENTS;
+  bool has_only_undefined_values = true;
 
   // Fill in the literals.
   bool is_simple = true;
@@ -3398,6 +3416,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       // FAST_DOUBLE_ELEMENTS and FAST_ELEMENTS as necessary.  Always remember
       // the tagged value, no matter what the ElementsKind is in case we
       // ultimately end up in FAST_ELEMENTS.
+      has_only_undefined_values = false;
       object_literals->set(i, *boilerplate_value);
       if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
         // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
@@ -3434,6 +3453,13 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
         }
       }
     }
+  }
+
+  // Very small array literals that don't have a concrete hint about their type
+  // from a constant value should default to the slow case to avoid lots of
+  // elements transitions on really small objects.
+  if (has_only_undefined_values && values->length() <= 2) {
+    elements_kind = FAST_ELEMENTS;
   }
 
   // Simple and shallow arrays can be lazily copied, we transform the
@@ -3581,7 +3607,7 @@ void ObjectLiteralPropertyChecker::CheckProperty(
 
   ASSERT(property != NULL);
 
-  Literal *lit = property->key();
+  Literal* lit = property->key();
   Handle<Object> handle = lit->handle();
 
   uint32_t hash;
@@ -3731,7 +3757,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
                              RelocInfo::kNoPosition,
                              FunctionLiteral::ANONYMOUS_EXPRESSION,
                              CHECK_OK);
-    // Allow any number of parameters for compatiabilty with JSC.
+    // Allow any number of parameters for compatibilty with JSC.
     // Specification only allows zero parameters for get and one for set.
     ObjectLiteral::Property* property =
         new(zone()) ObjectLiteral::Property(is_getter, value);
@@ -4476,6 +4502,15 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
     return Handle<String>();
   }
   return GetSymbol(ok);
+}
+
+
+void Parser::MarkAsLValue(Expression* expression) {
+  VariableProxy* proxy = expression != NULL
+      ? expression->AsVariableProxy()
+      : NULL;
+
+  if (proxy != NULL) proxy->MarkAsLValue();
 }
 
 

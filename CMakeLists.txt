@@ -48,6 +48,13 @@ include("${XMAKE_DEPENDENCIES_DIR}/XMake/XMake.cmake")
 add_definitions(-DENABLE_DEBUGGER_SUPPORT)
 
 
+include(FindPythonInterp)
+if (PYTHON_EXECUTABLE STREQUAL "PYTHON_EXECUTABLE-NOTFOUND")
+    message(FATAL_ERROR "Python is required to generate some tools needed during the compilation.
+If you have it installed on your system, and CMake didn't found it, you can set the PYTHON_EXECUTABLE variable.")
+endif()
+
+
 ##########################################################################################
 # v8_base library
 
@@ -399,6 +406,15 @@ if (UNIX)
     xmake_export_link_flags(V8_BASE "-lpthread")
 endif()
 
+if (WIN32)
+    xmake_export_link_flags(V8_BASE "Ws2_32.lib Winmm.lib")
+
+    # Disable some warnings in Visual Studio
+    xmake_add_to_property(V8_BASE COMPILE_FLAGS /wd4800)
+    xmake_add_to_property(V8_BASE COMPILE_FLAGS /wd4355)
+    xmake_add_to_property(V8_BASE COMPILE_FLAGS /wd4351)
+endif()
+
 
 ##########################################################################################
 # js2c
@@ -423,7 +439,7 @@ set(LIBRARY_FILES "${V8_SOURCE_DIR}/src/runtime.js"
 file(MAKE_DIRECTORY "${XMAKE_BINARY_DIR}/generated/v8/")
 
 add_custom_command(OUTPUT "${XMAKE_BINARY_DIR}/generated/v8/libraries.cc"
-                   COMMAND python "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/libraries.cc" "CORE" "off" ${LIBRARY_FILES}
+                   COMMAND "${PYTHON_EXECUTABLE}" "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/libraries.cc" "CORE" "off" ${LIBRARY_FILES}
                    WORKING_DIRECTORY "${V8_SOURCE_DIR}"
                    COMMENT "js2c..."
                    VERBATIM)
@@ -438,7 +454,7 @@ set(LIBRARY_EXPERIMENTAL_FILES "${V8_SOURCE_DIR}/src/macros.py"
 )
 
 add_custom_command(OUTPUT "${XMAKE_BINARY_DIR}/generated/v8/experimental-libraries.cc"
-                  COMMAND python "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/experimental-libraries.cc" "EXPERIMENTAL" "off" ${LIBRARY_EXPERIMENTAL_FILES}
+                  COMMAND "${PYTHON_EXECUTABLE}" "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/experimental-libraries.cc" "EXPERIMENTAL" "off" ${LIBRARY_EXPERIMENTAL_FILES}
                   WORKING_DIRECTORY "${V8_SOURCE_DIR}"
                   COMMENT "js2c-experimental..."
                   VERBATIM)
@@ -456,6 +472,12 @@ set(SRCS_V8_NOSNAPSHOT "${XMAKE_BINARY_DIR}/generated/v8/libraries.cc"
 xmake_create_static_library(V8_NOSNAPSHOT v8_nosnapshot ${SRCS_V8_NOSNAPSHOT})
 xmake_export_include_paths(V8_NOSNAPSHOT "${V8_SOURCE_DIR}/src")
 
+# Disable some warnings in Visual Studio
+if (WIN32)
+    xmake_add_to_property(V8_NOSNAPSHOT COMPILE_FLAGS /wd4800)
+    xmake_add_to_property(V8_NOSNAPSHOT COMPILE_FLAGS /wd4355)
+endif()
+
 
 ##########################################################################################
 # mksnapshot
@@ -465,8 +487,14 @@ xmake_project_link(MKSNAPSHOT V8_BASE V8_NOSNAPSHOT)
 
 set_target_properties(mksnapshot PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/tools/v8/")
 
+if (WIN32)
+    # Disable some warnings in Visual Studio
+    xmake_add_to_property(MKSNAPSHOT COMPILE_FLAGS /wd4800)
+    xmake_add_to_property(MKSNAPSHOT COMPILE_FLAGS /wd4355)
+endif()
+
 add_custom_command(OUTPUT "${XMAKE_BINARY_DIR}/generated/v8/snapshot.cc"
-                   COMMAND "${XMAKE_BINARY_DIR}/tools/v8/mksnapshot" "--log-snapshot-positions" "--logfile" "${XMAKE_BINARY_DIR}/generated/v8/snapshot.log" "${XMAKE_BINARY_DIR}/generated/v8/snapshot.cc"
+                   COMMAND mksnapshot "--log-snapshot-positions" "--logfile" "${XMAKE_BINARY_DIR}/generated/v8/snapshot.log" "${XMAKE_BINARY_DIR}/generated/v8/snapshot.cc"
                    DEPENDS mksnapshot
                    WORKING_DIRECTORY "${V8_SOURCE_DIR}"
                    COMMENT "mksnapshot..."
@@ -485,6 +513,12 @@ set(SRCS_V8_SNAPSHOT "${XMAKE_BINARY_DIR}/generated/v8/libraries.cc"
 xmake_create_static_library(V8_SNAPSHOT v8_snapshot ${SRCS_V8_SNAPSHOT})
 xmake_export_include_paths(V8_SNAPSHOT "${V8_SOURCE_DIR}/src")
 
+# Disable some warnings in Visual Studio
+if (WIN32)
+    xmake_add_to_property(V8_SNAPSHOT COMPILE_FLAGS /wd4800)
+    xmake_add_to_property(V8_SNAPSHOT COMPILE_FLAGS /wd4355)
+endif()
+
 
 ##########################################################################################
 # v8 dynamic library
@@ -498,9 +532,18 @@ if (NOT V8_STATIC)
     # Declaration of the library
     xmake_create_dynamic_library(V8 v8 3.8.9 3.8.0 ${SRCS_V8_DYN})
     xmake_add_to_list_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
-    
+
     if (UNIX)
         xmake_add_to_property(V8 LINK_FLAGS "-lpthread")
+    endif()
+
+    if (WIN32)
+        xmake_add_to_property(V8 LINK_FLAGS "Ws2_32.lib Winmm.lib")
+
+        # Disable some warnings in Visual Studio
+        xmake_add_to_property(V8 COMPILE_FLAGS /wd4800)
+        xmake_add_to_property(V8 COMPILE_FLAGS /wd4355)
+        xmake_add_to_property(V8 COMPILE_FLAGS /wd4351)
     endif()
 
     xmake_export_include_paths(V8 "${V8_SOURCE_DIR}/include")
@@ -516,7 +559,7 @@ set(LIBRARY_D8_FILES "${V8_SOURCE_DIR}/src/macros.py"
 )
 
 add_custom_command(OUTPUT "${XMAKE_BINARY_DIR}/generated/v8/d8-js.cc"
-                   COMMAND python "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/d8-js.cc" "D8" "off" ${LIBRARY_D8_FILES}
+                   COMMAND "${PYTHON_EXECUTABLE}" "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/d8-js.cc" "D8" "off" ${LIBRARY_D8_FILES}
                    WORKING_DIRECTORY "${V8_SOURCE_DIR}"
                    COMMENT "js2c-d8..."
                    VERBATIM)
@@ -580,4 +623,10 @@ if (LINK_FLAGS)
     set_target_properties(d8 PROPERTIES LINK_FLAGS "${D8_LINK_FLAGS} ${LINK_FLAGS}")
 else()
     set_target_properties(d8 PROPERTIES LINK_FLAGS "${D8_LINK_FLAGS}")
+endif()
+
+# Disable some warnings in Visual Studio
+if (WIN32)
+    xmake_add_to_property(D8 COMPILE_FLAGS /wd4800)
+    xmake_add_to_property(D8 COMPILE_FLAGS /wd4355)
 endif()

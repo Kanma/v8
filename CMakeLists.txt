@@ -408,12 +408,12 @@ endif()
 
 if (WIN32)
     xmake_export_link_flags(V8_BASE "Ws2_32.lib Winmm.lib")
-
-    # Disable some warnings in Visual Studio
-    xmake_add_to_property(V8_BASE COMPILE_FLAGS /wd4800)
-    xmake_add_to_property(V8_BASE COMPILE_FLAGS /wd4355)
-    xmake_add_to_property(V8_BASE COMPILE_FLAGS /wd4351)
 endif()
+
+# Disable some warnings in Visual Studio
+xmake_disable_vs_warning(V8_BASE 4800 YES)
+xmake_disable_vs_warning(V8_BASE 4355 YES)
+xmake_disable_vs_warning(V8_BASE 4351 NO)
 
 
 ##########################################################################################
@@ -473,10 +473,8 @@ xmake_create_static_library(V8_NOSNAPSHOT v8_nosnapshot ${SRCS_V8_NOSNAPSHOT})
 xmake_export_include_paths(V8_NOSNAPSHOT "${V8_SOURCE_DIR}/src")
 
 # Disable some warnings in Visual Studio
-if (WIN32)
-    xmake_add_to_property(V8_NOSNAPSHOT COMPILE_FLAGS /wd4800)
-    xmake_add_to_property(V8_NOSNAPSHOT COMPILE_FLAGS /wd4355)
-endif()
+xmake_disable_vs_warning(V8_NOSNAPSHOT 4800 YES)
+xmake_disable_vs_warning(V8_NOSNAPSHOT 4355 YES)
 
 
 ##########################################################################################
@@ -487,11 +485,9 @@ xmake_project_link(MKSNAPSHOT V8_BASE V8_NOSNAPSHOT)
 
 set_target_properties(mksnapshot PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/tools/v8/")
 
-if (WIN32)
-    # Disable some warnings in Visual Studio
-    xmake_add_to_property(MKSNAPSHOT COMPILE_FLAGS /wd4800)
-    xmake_add_to_property(MKSNAPSHOT COMPILE_FLAGS /wd4355)
-endif()
+# Disable some warnings in Visual Studio
+xmake_disable_vs_warning(MKSNAPSHOT 4800 YES)
+xmake_disable_vs_warning(MKSNAPSHOT 4355 YES)
 
 add_custom_command(OUTPUT "${XMAKE_BINARY_DIR}/generated/v8/snapshot.cc"
                    COMMAND mksnapshot "--log-snapshot-positions" "--logfile" "${XMAKE_BINARY_DIR}/generated/v8/snapshot.log" "${XMAKE_BINARY_DIR}/generated/v8/snapshot.cc"
@@ -514,10 +510,8 @@ xmake_create_static_library(V8_SNAPSHOT v8_snapshot ${SRCS_V8_SNAPSHOT})
 xmake_export_include_paths(V8_SNAPSHOT "${V8_SOURCE_DIR}/src")
 
 # Disable some warnings in Visual Studio
-if (WIN32)
-    xmake_add_to_property(V8_SNAPSHOT COMPILE_FLAGS /wd4800)
-    xmake_add_to_property(V8_SNAPSHOT COMPILE_FLAGS /wd4355)
-endif()
+xmake_disable_vs_warning(V8_SNAPSHOT 4800 YES)
+xmake_disable_vs_warning(V8_SNAPSHOT 4355 YES)
 
 
 ##########################################################################################
@@ -540,11 +534,14 @@ if (NOT V8_STATIC)
     if (WIN32)
         xmake_add_to_property(V8 LINK_FLAGS "Ws2_32.lib Winmm.lib")
 
-        # Disable some warnings in Visual Studio
-        xmake_add_to_property(V8 COMPILE_FLAGS /wd4800)
-        xmake_add_to_property(V8 COMPILE_FLAGS /wd4355)
-        xmake_add_to_property(V8 COMPILE_FLAGS /wd4351)
+        # To prevent an error with Visual Studio's "parallel projects builds"
+        add_dependencies(v8 v8_snapshot)
     endif()
+
+    # Disable some warnings in Visual Studio
+    xmake_disable_vs_warning(V8 4800 YES)
+    xmake_disable_vs_warning(V8 4355 YES)
+    xmake_disable_vs_warning(V8 4351 NO)
 
     xmake_export_include_paths(V8 "${V8_SOURCE_DIR}/include")
     xmake_export_compile_definitions(V8 "USING_V8_SHARED;V8_SHARED")
@@ -623,10 +620,4 @@ if (LINK_FLAGS)
     set_target_properties(d8 PROPERTIES LINK_FLAGS "${D8_LINK_FLAGS} ${LINK_FLAGS}")
 else()
     set_target_properties(d8 PROPERTIES LINK_FLAGS "${D8_LINK_FLAGS}")
-endif()
-
-# Disable some warnings in Visual Studio
-if (WIN32)
-    xmake_add_to_property(D8 COMPILE_FLAGS /wd4800)
-    xmake_add_to_property(D8 COMPILE_FLAGS /wd4355)
 endif()

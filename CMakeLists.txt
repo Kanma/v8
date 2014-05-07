@@ -403,7 +403,7 @@ xmake_create_static_library(V8_BASE v8_base ${SRCS_V8_BASE_ALL})
 xmake_export_include_paths(V8_BASE "${V8_SOURCE_DIR}/src")
 
 if (UNIX)
-    xmake_export_link_flags(V8_BASE "-lpthread")
+    xmake_link_libraries(V8_BASE pthread)
 endif()
 
 if (WIN32)
@@ -482,10 +482,6 @@ xmake_disable_vs_warning(V8_NOSNAPSHOT 4355 YES)
 
 xmake_create_executable(MKSNAPSHOT mksnapshot "${V8_SOURCE_DIR}/src/mksnapshot.cc")
 xmake_project_link(MKSNAPSHOT V8_BASE V8_NOSNAPSHOT)
-
-if (UNIX)
-    xmake_link_libraries(MKSNAPSHOT pthread)
-endif()
 
 set_target_properties(mksnapshot PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/tools/v8/")
 

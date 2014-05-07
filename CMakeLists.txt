@@ -454,10 +454,10 @@ set(LIBRARY_EXPERIMENTAL_FILES "${V8_SOURCE_DIR}/src/macros.py"
 )
 
 add_custom_command(OUTPUT "${XMAKE_BINARY_DIR}/generated/v8/experimental-libraries.cc"
-                  COMMAND "${PYTHON_EXECUTABLE}" "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/experimental-libraries.cc" "EXPERIMENTAL" "off" ${LIBRARY_EXPERIMENTAL_FILES}
-                  WORKING_DIRECTORY "${V8_SOURCE_DIR}"
-                  COMMENT "js2c-experimental..."
-                  VERBATIM)
+                   COMMAND "${PYTHON_EXECUTABLE}" "${V8_SOURCE_DIR}/tools/js2c.py" "${XMAKE_BINARY_DIR}/generated/v8/experimental-libraries.cc" "EXPERIMENTAL" "off" ${LIBRARY_EXPERIMENTAL_FILES}
+                   WORKING_DIRECTORY "${V8_SOURCE_DIR}"
+                   COMMENT "js2c-experimental..."
+                   VERBATIM)
 
 
 ##########################################################################################
@@ -482,6 +482,10 @@ xmake_disable_vs_warning(V8_NOSNAPSHOT 4355 YES)
 
 xmake_create_executable(MKSNAPSHOT mksnapshot "${V8_SOURCE_DIR}/src/mksnapshot.cc")
 xmake_project_link(MKSNAPSHOT V8_BASE V8_NOSNAPSHOT)
+
+if (UNIX)
+    xmake_link_libraries(MKSNAPSHOT pthread)
+endif()
 
 set_target_properties(mksnapshot PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${XMAKE_BINARY_DIR}/tools/v8/")
 
@@ -528,7 +532,7 @@ if (NOT V8_STATIC)
     xmake_add_to_list_property(V8 COMPILE_DEFINITIONS "BUILDING_V8_SHARED;V8_SHARED")
 
     if (UNIX)
-        xmake_add_to_property(V8 LINK_FLAGS "-lpthread")
+        xmake_link_libraries(V8 pthread)
     endif()
 
     if (WIN32)
@@ -591,10 +595,8 @@ endif()
 if (READLINE_FOUND)
     include_directories("${READLINE_INCLUDE_DIR}")
     set(SRCS_D8_READLINE "${V8_SOURCE_DIR}/src/d8-readline.cc")
-    set(D8_LINK_FLAGS "-lreadline")
 else()
     set(SRCS_D8_READLINE "")
-    set(D8_LINK_FLAGS "")
 endif()
 
 
@@ -614,10 +616,6 @@ xmake_create_executable(D8 d8 "${V8_SOURCE_DIR}/src/d8.cc"
 
 xmake_project_link(D8 V8_BASE V8_SNAPSHOT)
 
-get_target_property(LINK_FLAGS d8 LINK_FLAGS)
-
-if (LINK_FLAGS)
-    set_target_properties(d8 PROPERTIES LINK_FLAGS "${D8_LINK_FLAGS} ${LINK_FLAGS}")
-else()
-    set_target_properties(d8 PROPERTIES LINK_FLAGS "${D8_LINK_FLAGS}")
+if (READLINE_FOUND)
+    xmake_link_libraries(D8 readline)
 endif()
